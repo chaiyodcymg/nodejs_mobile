@@ -8,4 +8,5 @@ router.use((req, res, next) => {
 
 router.get('/',controller.home )
 router.post('/login',controller.login)
+router.post('/register',controller.register)
 module.exports = router
