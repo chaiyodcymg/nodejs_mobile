@@ -11,7 +11,7 @@ module.exports = con = mysql.createConnection({
     if (err){
         console.log(err);
     }else{
-        console.log("Connected!");
+        console.log("Connected Database!");
        
     }
 
