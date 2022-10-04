@@ -19,8 +19,7 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 })); 
 
 
-const controller = require('./controller/controller')
-controller.search(io)
+
 
 app.use(router)
 

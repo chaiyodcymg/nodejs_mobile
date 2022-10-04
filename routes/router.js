@@ -14,5 +14,6 @@ router.post('/register',controller.register)
 router.post('/updateprofilewithImage',controller.updateprofile_withImage)
 router.post('/updateprofilenoImage',controller.updateprofile_noImage)
 router.post('/profile',controller.profile)
-
+router.get('/search',controller.search)
+router.post('/insertfindhouse',controller.insertfindhouse)
 module.exports = router
