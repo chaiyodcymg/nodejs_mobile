@@ -78,7 +78,7 @@ exports.updateprofile_withImage= (req,res) =>{
   }
   // console.log(filename_random.split('/public')[1])
   con.query("UPDATE users SET email = ? , firstname =  ? , lastname = ? , image_profile = ? WHERE id = ? " ,
-  [req.body.email , req.body.firstname , req.body.lastname, filename_random.split('/public')[1],  req.body.id ],function (err, result){
+  [req.body.email , req.body.firstname , req.body.lastname, filename_random.split('/public/')[1],  req.body.id ],function (err, result){
     if(err){
       console.log(err)
       return  res.status(401).json({status:false,text:"ผิดพลาด"})
@@ -103,20 +103,70 @@ exports.updateprofile_noImage =(req,res) =>{
 
   })
  }
+ exports.insertnews =(req,res) =>{
+  var news = req.body;
+  
+  if (!news) {
+    return res
+      .status(400)
+      .send({ error: true, message: "Please fill infomation " });
+  }
+    con.query(
+      "INSERT INTO cat_news (title, image, detail, user_id) "+ 
+      "VALUES (?,?,?,?)",[news.title, news.image, news.detail, news.user_id], function (error, result) {
+        if (error) throw error;
+        return res.send(result);
+      });
+}
+
+ exports.news =(req,res) =>{
+
+  con.query('SELECT * FROM cat_news',function (error, result) {
+      if (error) 
+      {
+        res.status(500)
+      }
+      else{
+        console.log(result);
+        res.status(200).json(result)
+      };
+      });
+ }
+ exports.editnews =(req,res) =>{
+  var news_id = req.params.id;
+  var update_news = req.body
+  if(!news_id || !update_news){
+    return res.status(500)}
+
+  con.query(
+    "UPDATE cat_news SET ? WHERE id = ?",[update,id] , function (error, results, fields) {
+      if (error) {
+        res.status(500)
+      }else{
+        console.log(result);
+        res.status(200).json(result)
+      };
+    })
+ }
+
+
  exports.profile =(req,res) =>{
   con.query("SELECT * FROM users WHERE id = ?",[req.body.id],function (err, result) {
     if (err) {
         res.status(500)
     }else{
         console.log(result);
-        res.status(200).json({
-          email:result[0].email,
-          name:result[0].name,
-          firstname:result[0].firstname,
-          lastname:result[0].lastname,
-          image_profile:result[0].image_profile
-        
-        })
+        if(result != null){
+          res.status(200).json({
+            email:result[0].email,
+            name:result[0].name,
+            firstname:result[0].firstname,
+            lastname:result[0].lastname,
+            image_profile:result[0].image_profile
+          
+          })
+        }
+    
     }
 
   });
@@ -155,23 +205,105 @@ console.log(req.query.data);
       .status(400)
       .send({ error: true, message: "Please fill infomation " });
   }
-
-
+  if(req.files){
+    const file = req.files.image
+    var filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(50)+".jpg"
+  
+    if (fs.existsSync(filename_random )) {
+      filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(60)+".jpg"
+      file.mv(filename_random)
+    }else{
+      file.mv(filename_random)
+    }
+ 
   con.query(
     "INSERT INTO post (status, type, user_id) VALUES (?,?,?)",[parseInt(info.status), parseInt(info.type), parseInt(info.user_id)] , function (error, results, fields) {
       if (error) throw error;
       var post_id = parseInt(results.insertId)
     con.query(
       "INSERT INTO post_info (name, gender, color, vaccine, date_vaccine, species, more_info, image, house_no, street, sub_district, district, province, post_address, firstname, lastname, phone, email, line_id, facebook, post_id) "+ 
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[info.name, info.gender, info.color, info.vaccine, info.date_vaccine, info.species, info.more_info, info.image, info.house_no, info.street, info.sub_district, info.district, info.province, info.post_address, info.firstname, info.lastname, info.phone, info.email, info.line_id, info.facebook,  post_id] , function (error, result, fields) {
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[info.name, info.gender, info.color, info.vaccine, info.date_vaccine, info.species, info.more_info, filename_random.split('/public/')[1], info.house_no, info.street, info.sub_district, info.district, info.province, info.post_address, info.firstname, info.lastname, info.phone, info.email, info.line_id, info.facebook,  post_id] , function (error, result, fields) {
         if (error) throw error;
         return res.send(result);
       });
     })
+}
+ }
 
-    
+ exports.insertcatlost= (req,res) =>{
+  var info = req.body;
   
-    
+  if (!info) {
+    return res
+      .status(400)
+      .send({ error: true, message: "Please fill infomation " });
+  }
+  if(req.files){
+
+    const file = req.files.image
+    var filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(50)+".jpg"
+  
+    if (fs.existsSync(filename_random )) {
+      filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(60)+".jpg"
+      file.mv(filename_random)
+    }else{
+      file.mv(filename_random)
+    }
+
+  con.query(
+    "INSERT INTO post (status, type, user_id) VALUES (?,?,?)",[parseInt(info.status), parseInt(info.type), parseInt(info.user_id)] , function (error, results, fields) {
+      if (error) throw error;
+      var post_id = parseInt(results.insertId)
+     
+    con.query(
+      "INSERT INTO post_info (name, gender, color, vaccine, date_vaccine, species, more_info, image, house_no, street, sub_district, district, province, post_address, date, notice_point, place_to_found, firstname, lastname, phone, email, line_id, facebook, post_id) "+ 
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[info.name, info.gender, info.color, info.vaccine, info.date_vaccine, info.species, info.more_info, filename_random.split('/public/')[1], info.house_no, info.street, info.sub_district, info.district, info.province, info.post_address, info.date, info.notice_point, info.place_to_found, info.firstname, info.lastname, info.phone, info.email, info.line_id, info.facebook,  post_id] , function (error, result, fields) {
+        if (error) throw error;
+        return res.send(result);
+      });
+    })
+  }
+ }
+
+ exports.updateCat = (rea,res) => {
+    var id = req.params.id;
+    var update = req.body
+
+    con.query(
+      "UPDATE post SET ? WHERE id = ?",[update,id] , function (error, results, fields) {
+        if (error) throw error;
+        var post_id = parseInt(results.insertId)
+      })
 
  }
+
+ exports.mypost =(req,res) =>{
+
+  con.query('SELECT * FROM post_info',function (error, result) {
+      if (error) 
+      {
+        res.status(500)
+      }
+      else{
+        console.log(result);
+        res.status(200).json(result)
+      };
+      });
+ }
+
+ exports.deletePost = (req,res) => {
+  var id = req.params.id;
+  var update = req.body
+
+  if (!id) {
+    return res.status(400).send({ error: true, message: 'Please provide id' }); 
+  }
+  console.log(id);
+  con.query(
+    "DELETE FROM post_info WHERE id = ?",parseInt(id) , function (error, results, fields) {
+      if (error) throw error;
+      return res.send({ error: false, data: results, message: 'Post has been deleted successfully.' });
+    })
+
+}
  // app.set('socketio',io)
