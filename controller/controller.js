@@ -4,7 +4,7 @@ const con = require('../model/model')
 const randomstring = require("randomstring");
 const fs = require('fs');
 const toSQLDate = require('js-date-to-sql-datetime');
-
+const CryptoJS = require("crypto-js");
 
 exports.home = (req,res) =>{
     con.query("SELECT * FROM users",function (err, result) {
@@ -21,7 +21,8 @@ exports.home = (req,res) =>{
 }
 exports.login = (req,res) =>{
   console.log(req.body);
-  con.query("SELECT * FROM users WHERE email = ? AND  password = ?", [req.body.email,req.body.password],function (err, result) {
+  const encrypted_password = CryptoJS.MD5(req.body.password.toString()).toString()
+  con.query("SELECT * FROM users WHERE email = ? AND  password = ?", [req.body.email, encrypted_password ],function (err, result) {
     if (err){
       console.log("errrrrrrrr")
        return  res.status(401).json({status:false,text:" อีเมลหรือรหัสผ่านไม่ถูกต้องกรุณากรอกข้อมูลใหม่อีกรั้ง",AUTH:""})
@@ -47,13 +48,16 @@ exports.login = (req,res) =>{
 exports.register= (req,res) =>{
   console.log(req.body);
   var role = 0
-  con.query("INSERT INTO users (email,password,firstname,lastname,role) VALUES (?,?,?,?,?)", 
+  let image_profile = "images/user.png"
+  const encrypted_password = CryptoJS.MD5(req.body.password.toString()).toString()
+  con.query("INSERT INTO users (email,password,firstname,lastname,role,image_profile) VALUES (?,?,?,?,?,?)", 
   [
   req.body.email,
-  req.body.password,
+  encrypted_password,
   req.body.firstname,
   req.body.lastname,
-  role
+  role,
+  image_profile
 ],function (err, result){
   if (err){
     return  res.status(401).json({status:false,text:" อีเมลหรือรหัสผ่านไม่ถูกต้องกรุณากรอกข้อมูลใหม่อีกรั้ง",AUTH:"",role:""})
@@ -110,83 +114,136 @@ exports.updateprofile_noImage =(req,res) =>{
     return res
       .status(400)
       .send({ error: true, message: "Please fill infomation " });
+  }else{
+    if(req.files){
+
+      const file = req.files.image
+      var filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(50)+".jpg"
+    
+      if (fs.existsSync(filename_random )) {
+        filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(60)+".jpg"
+        file.mv(filename_random)
+      }else{
+        file.mv(filename_random)
+      }
+      con.query(
+        "INSERT INTO cat_news (title, image, detail, user_id) "+ 
+        "VALUES (?,?,?,?)",[news.title, filename_random.split('/public/')[1], news.detail, news.user_id], function (error, result) {
+          if (error) throw error;
+          return res.send(result);
+        });
+    }
   }
-    con.query(
-      "INSERT INTO cat_news (title, image, detail, user_id) "+ 
-      "VALUES (?,?,?,?)",[news.title, news.image, news.detail, news.user_id], function (error, result) {
-        if (error) throw error;
-        return res.send(result);
-      });
+
+   
 }
 
  exports.news =(req,res) =>{
 
-  con.query('SELECT * FROM cat_news',function (error, result) {
-      if (error) 
-      {
-        res.status(500)
-      }
-      else{
-        console.log(result);
-        res.status(200).json(result)
-      };
-      });
- }
+  con.query('SELECT * FROM cat_news WHERE del_status = "N" ',function (error, result) {
+    if (error) {
+      res.status(500)
+     }else{
+      console.log(result);
+      res.status(200).json(result)
+    
+     }
+    })
+  }
  exports.editnews =(req,res) =>{
-  var news_id = req.params.id;
-  var update_news = req.body
-  if(!news_id || !update_news){
-    return res.status(500)}
+  var news_id = req.body.id
 
-  con.query(
-    "UPDATE cat_news SET ? WHERE id = ?",[update,id] , function (error, results, fields) {
-      if (error) {
-        res.status(500)
+  // var   update_at =  toSQLDate(new Date())
+  // update.update_at = update_at
+  if(!news_id){
+    return res.status(500)
+  }else{
+    if(req.files){
+
+      const file = req.files.image
+      var filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(50)+".jpg"
+    
+      if (fs.existsSync(filename_random )) {
+        filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(60)+".jpg"
+        file.mv(filename_random)
       }else{
-        console.log(result);
-        res.status(200).json(result)
-      };
+        file.mv(filename_random)
+      }
+     
+      con.query(
+        "UPDATE cat_news SET  title = ?, image = ?, detail = ?  WHERE id = ?",[req.body.title,filename_random.split('/public/')[1],req.body.detail,news_id] , function (error, result) {
+          if (error) {
+            res.status(500)
+          }else{
+            console.log(result);
+            res.status(200).json(result)
+          };
+        })
+    }
+  }
+ 
+ }
+
+ exports.softdelnews =(req,res) =>{
+  let news_id = req.params.id;
+  var update = req.body
+  update.del_status = 'Y'
+
+  if (!news_id || !update) {
+    return res.status(500).send({ error: true, message: 'Please provide news_id' }); }
+
+  con.query("UPDATE cat_news SET ? WHERE cat_news.id = ?",[update,news_id] , function (error, result) {
+      if (error) {
+        throw error;
+      }
+      console.log(result);
+      return res.send({ error: false, data: result, message: 'News has been deleted successfully.' });
     })
  }
 
 
  exports.profile =(req,res) =>{
-  con.query("SELECT * FROM users WHERE id = ?",[req.body.id],function (err, result) {
-    if (err) {
-        res.status(500)
-    }else{
-        console.log(result);
-        if(result != null){
-          res.status(200).json({
-            email:result[0].email,
-            name:result[0].name,
-            firstname:result[0].firstname,
-            lastname:result[0].lastname,
-            image_profile:result[0].image_profile
+  if(req.body.id != undefined){
+    con.query("SELECT * FROM users WHERE id = ?",[parseInt(req.body.id) ],function (err, result) {
+      if (err) {
+          res.status(500)
+      }else{
           
-          })
-        }
-    
-    }
-
-  });
+          if(result != null){
+            console.log("email = ",result);
+            res.status(200).json({
+              email:result[0].email,
+              name:result[0].name,
+              firstname:result[0].firstname,
+              lastname:result[0].lastname,
+              image_profile:result[0].image_profile
+            
+            })
+          }
+      
+      }
+  
+    });
+  }
+  
  }
  exports.search = (req,res) =>{
   var search  =  req.query.data
 
-console.log(req.query.data);
-
-     
-       var sql = "SELECT * FROM post_info WHERE name LIKE '%"+search+"%' OR  species LIKE '"+search+"%'"
-        con.query(sql ,function (err, result){
+var sql = "SELECT post_info.id,post.type, post_info.* FROM post_info JOIN post ON post_info.post_id = post.id"+
+" WHERE post.del_status = 'N' AND  post.status = 1 AND post_info.name LIKE '%"+search+"%' OR post_info.species LIKE '%"+search+"%' OR post_info.color LIKE '%"+search+"%'"
+      //  var sql = "SELECT * FROM post_info WHERE name LIKE '%"+search+"%' OR  species LIKE '"+search+"%'"
+        con.query(sql,function (err, result){
           if(err){
             console.log(err)
             
           }else{
-        
+            
             if(result.length > 0){
               console.log(result)
             res.json(result)
+            }else{
+              res.json({})
             }
           
           }
@@ -251,7 +308,7 @@ console.log(req.query.data);
     }
 
   con.query(
-    "INSERT INTO post (status, type, user_id) VALUES (?,?,?)",[parseInt(info.status), parseInt(info.type), parseInt(info.user_id)] , function (error, results, fields) {
+    "INSERT INTO post (status, type, user_id) VALUES (?,?,?)",[parseInt(info.status), parseInt(info.type), parseInt(info.user_id)] , function (error, results) {
       if (error) throw error;
       var post_id = parseInt(results.insertId)
      
@@ -265,45 +322,232 @@ console.log(req.query.data);
   }
  }
 
- exports.updateCat = (rea,res) => {
-    var id = req.params.id;
-    var update = req.body
 
-    con.query(
-      "UPDATE post SET ? WHERE id = ?",[update,id] , function (error, results, fields) {
-        if (error) throw error;
-        var post_id = parseInt(results.insertId)
-      })
-
- }
 
  exports.mypost =(req,res) =>{
+  var id = req.params.id;
 
-  con.query('SELECT * FROM post_info',function (error, result) {
+  con.query('SELECT post_info.id , post.type, post_info.* FROM post_info JOIN post ON post_info.post_id = post.id WHERE post.del_status = "N" AND post.user_id = ?',parseInt(id),function (error, result) {
       if (error) 
       {
+        console.log(error);
         res.status(500)
       }
       else{
-        console.log(result);
+        console.log(result.length);
         res.status(200).json(result)
+      
       };
       });
  }
 
- exports.deletePost = (req,res) => {
+ exports.allpost = (req,res) => {
+  con.query('SELECT post_info.id , post.type , post_info.* FROM post_info JOIN post ON post_info.post_id = post.id WHERE post.status = 0 AND post.del_status = "N"',function (error, result) {
+    if (error) 
+    {
+      console.log(error);
+      res.status(500)
+    }
+    else{
+   
+      res.status(200).json(result)
+    
+    };
+    });
+ }
+
+exports.softdel = (req,res) => {
   var id = req.params.id;
-  var update = req.body
 
   if (!id) {
     return res.status(400).send({ error: true, message: 'Please provide id' }); 
   }
-  console.log(id);
-  con.query(
-    "DELETE FROM post_info WHERE id = ?",parseInt(id) , function (error, results, fields) {
-      if (error) throw error;
+
+  con.query("UPDATE post JOIN post_info ON post.id = post_info.post_id SET post.del_status = 'Y' WHERE post_info.id = ?",parseInt(id) , function (error, results, fields) {
+      if (error) {
+        throw error;
+      }
+      console.log(results);
       return res.send({ error: false, data: results, message: 'Post has been deleted successfully.' });
     })
-
 }
  // app.set('socketio',io)
+
+ exports.newshome= (req,res) => {
+  con.query("SELECT * FROM cat_news WHERE del_status = 'N' ORDER BY create_at DESC LIMIT 1",function (error, result) {
+    if (error) 
+    {
+      res.status(500)
+    }
+    else{
+      console.log(result[0]);
+      res.status(200).json(result[0])
+    };
+    });
+ }
+
+ exports.homefindhouse = (req, res) => {
+  con.query("SELECT post_info.id , post_info.* FROM post_info JOIN post ON post_info.post_id = post.id WHERE post.type = 0  AND post.status = 1 AND post.del_status = 'N' ORDER BY created_at DESC LIMIT 2" ,function (error, result) {
+    if (error) 
+    {
+      console.log(error);
+      res.status(500)
+    }
+    else{
+      console.log(result);
+      res.status(200).json(result)
+    
+    };
+    });
+ }
+
+ exports.homecatlost = (req,res) => {
+con.query("SELECT post_info.id , post_info.* FROM post_info JOIN post ON post_info.post_id = post.id WHERE (post.type = 1 OR post.type = 2) AND post.status = 1 AND post.del_status = 'N' ORDER BY created_at DESC LIMIT 2" ,function (error, result) {
+    if (error) 
+    {
+      console.log(error);
+      res.status(500)
+    }
+    else{
+      console.log(result);
+      res.status(200).json(result)
+    
+    };
+    });
+ }
+
+ exports.denypost = (req,res) => {
+  var id = req.params.id;
+
+  if (!id) {
+    return res.status(400).send({ error: true, message: 'Please provide id' }); 
+  }
+
+  con.query("UPDATE post JOIN post_info ON post.id = post_info.post_id SET post.status = 2 WHERE post_info.id = ?",parseInt(id) , function (error, results, fields) {
+      if (error) {
+        throw error;
+      }
+      console.log(results);
+      return res.send({ error: false, data: results, message: 'Post has been updated successfully.' });
+    })
+ }
+
+ exports.acceptpost = (req,res) => {
+  var id = req.params.id;
+
+  if (!id) {
+    return res.status(400).send({ error: true, message: 'Please provide id' }); 
+  }
+
+  con.query("UPDATE post JOIN post_info ON post.id = post_info.post_id SET post.status = 1 WHERE post_info.id = ?",parseInt(id) , function (error, results, fields) {
+      if (error) {
+        throw error;
+      }
+      console.log(results);
+      return res.send({ error: false, data: results, message: 'Post has been accept successfully.' });
+    })
+ }
+
+ exports.more_findhouse = (req,res) => {
+  con.query("SELECT post_info.id , post_info.* FROM post_info JOIN post ON post_info.post_id = post.id WHERE post.type = 0  AND post.status = 1 AND post.del_status = 'N' ORDER BY created_at DESC" ,function (error, result) {
+    if (error) 
+    {
+      console.log(error);
+      res.status(500)
+    }
+    else{
+      console.log(result);
+      res.status(200).json(result)
+    
+    };
+    });
+ }
+
+
+
+ exports.more_catlost = (req,res) => {
+  con.query("SELECT post_info.id , post_info.* FROM post_info JOIN post ON post_info.post_id = post.id WHERE (post.type = 1 OR post.type = 2) AND post.status = 1 AND post.del_status = 'N'ORDER BY created_at DESC" ,function (error, result) {
+    if (error) 
+    {
+      console.log(error);
+      res.status(500)
+    }
+    else{
+      console.log(result);
+      res.status(200).json(result)
+    
+    };
+    });
+ }
+
+
+ exports.updatePostFindhouse =  (req,res) => {
+  var  post_id = req.body.post_id;
+  var info = req.body;
+
+  if (! post_id || !info ) {
+    return res.status(400).send({  message: 'Please provide data ' });
+   }else{
+    if(req.files){
+
+      const file = req.files.image
+      var filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(50)+".jpg"
+    
+      if (fs.existsSync(filename_random )) {
+        filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(60)+".jpg"
+        file.mv(filename_random)
+      }else{
+        file.mv(filename_random)
+      }
+      info.image =  filename_random.split('/public/')[1]
+      console.log( info);
+      delete info['type']; 
+      delete info['status'];
+        con.query("UPDATE post_info SET ? WHERE post_id = ?",[info,  post_id.toString()] , function (error, result) {
+            if (error) throw error;
+            console.log(result);
+            return res.send(result);
+          });
+      
+      
+   
+      }
+   }
+
+
+}
+exports.updateLostCat =  (req,res) => {
+  var  post_id = req.body.post_id;
+  var info = req.body;
+
+  if (! post_id || !info ) {
+    return res.status(400).send({  message: 'Please provide data ' });
+   }else{
+    if(req.files){
+
+      const file = req.files.image
+      var filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(50)+".jpg"
+
+      if (fs.existsSync(filename_random )) {
+        filename_random = __dirname.split('/controller')[0]+"/public/images/"+randomstring.generate(60)+".jpg"
+        file.mv(filename_random)
+      }else{
+        file.mv(filename_random)
+      }
+      info.image =  filename_random.split('/public/')[1]
+      console.log( info);
+
+      delete info['status'];
+      con.query("UPDATE post SET type = ? WHERE id = ?",[ info.type.toString() ,  post_id.toString()] , function (error, result) {
+        if (error) throw error;
+        delete info['type'];
+        con.query("UPDATE post_info SET ? WHERE post_id = ?",[info,  post_id.toString()] , function (error, result) {
+          if (error) throw error;
+          console.log(result);
+          return res.send(result);
+        });
+      });
+      
+      }
+   }
+}

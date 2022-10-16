@@ -6,8 +6,7 @@ const router = require('./routes/router')
 const cors = require('cors')
 var path = require('path');
 const fileUpload =  require('express-fileupload')
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+
 
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -23,7 +22,7 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 
 app.use(router)
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
 })
 
